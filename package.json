@@ -1,0 +1,25 @@
+{
+  "name": "rbuzz-server",
+  "version": "0.0.1",
+  "description": "Server component for RBuzz android app",
+  "main": "main.js",
+  "dependencies": {
+    "firebase-admin": "^5.4.2",
+    "request": "^2.83.0",
+    "request-promise": "^4.2.2"
+  },
+  "devDependencies": {
+    "nodemon": "^1.12.1"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "nodemon main.js"
+  },
+  "keywords": [
+    "RBuzz",
+    "vibration",
+    "android"
+  ],
+  "author": "jallier",
+  "license": "ISC"
+}
