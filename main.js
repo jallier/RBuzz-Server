@@ -45,8 +45,8 @@ async function sendNotifToUser(recipient, pattern) {
       Authorization: 'key=' + FCM_API_KEY,
     },
     body: JSON.stringify({
-      notification: {
-        title: 'testNotif',
+      data: {
+        pattern: pattern,
       },
       to: userFCMKey,
     }),
