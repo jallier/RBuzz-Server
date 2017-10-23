@@ -30,7 +30,7 @@ function listen(childNode, processMessage) {
       console.log('delaying one second...');
       await wait(1000);
     }
-    let data = processMessage(message);
+    let data = await processMessage(message);
     try {
       await sendNotifToUser(message.recipient, data);
       snapshot.ref.remove();
@@ -43,7 +43,9 @@ function listen(childNode, processMessage) {
 }
 
 async function sendNotifToUser(recipient, data) {
-  let userFCMKey = await getUser(recipient);
+  // let userFCMKey = await getUserFcmToken(recipient);
+  let userFCMKey = await getUserFcmToken(recipient);
+  console.log(userFCMKey);
   let options = {
     url: 'https://fcm.googleapis.com/fcm/send',
     method: 'POST',
@@ -67,30 +69,58 @@ async function sendNotifToUser(recipient, data) {
     console.error('http error:', response.statusCode);
     throw new Error(response);
   }
-  console.log('Notification sent to:', userFCMKey);
+  console.log('Notification sent to:', userFCMKey, data);
   return true;
 }
 
-async function getUser(fbUid) {
+async function getUserFcmToken(id) {
   let users = ref.child('users');
   let user;
   let token;
-  try {
-    user = await users.child(fbUid).once('value');
+  if (id.indexOf('@') > -1) {
+    user = await getUserWithEmail(users, id);
+    let key;
+    // Get the first child
+    for(let i in user.val()){
+      key = i;
+      break;
+    }
+    user = user.val()[key];
+    token = user.fcmToken;
+  } else {
+    user = await getUserWithUID(users, id);
     token = user.val().fcmToken;
-  } catch (e) {
-    console.error(e);
-    return false;
   }
-  return token;
+  return token
+}
+
+async function getUserWithEmail(users, email) {
+  let user;
+  user = await users
+    .orderByChild('email')
+    .equalTo(email)
+    .once('value');
+  return user;
+}
+
+async function getUserWithUID(users, uid) {
+  let user;
+  user = await users.child(uid).once('value');
+  return user;
 }
 
 function processMessagePattern(data) {
   return { pattern: data.pattern };
 }
 
-function processMessageContacts(data) {
-  return { sender: data.from, recipient: data.to };
+async function processMessageContacts(data) {
+  if (!data.sender.indexOf('@') > -1) {
+    console.log('not from email address');
+    let sender = await getUserWithUID(ref.child('users'), data.sender);
+    sender = sender.val().email;
+    return {contact:true, sender, recipient: data.recipient};
+  }
+  return { contact: true, sender: data.sender, recipient: data.recipient };
 }
 
 if (process.argv[2] == 'debug') {
