@@ -15,27 +15,34 @@ let ref = db.ref();
 // Simple delay function
 let wait = ms => new Promise(resolve => setTimeout(resolve, ms));
 
-function listenForNewMessages() {
-  if (process.argv[2] == 'debug') {
-    console.log('Starting server in debug mode...');
-  } else {
-    console.log('Starting server...');
-  }
-  let messages = ref.child('messages');
+/**
+ * Listen to Firebase server at node given by childNode.
+ * Sends a notification to user specified in the received message
+ * @param {String} childNode Node of Firebase db to listen at
+ * @param {function} processMessage function to call to extract relevant data to send to client
+ */
+function listen(childNode, processMessage) {
+  let messages = ref.child(childNode);
   messages.on('child_added', async snapshot => {
     let message = snapshot.val();
-    console.log(message);
+    console.log(childNode, message);
     if (process.argv[2] == 'debug') {
       console.log('delaying one second...');
       await wait(1000);
     }
-    let success = await sendNotifToUser(message.recipient, message.pattern);
-    snapshot.ref.remove();
-    console.log('removed message');
+    let data = processMessage(message);
+    try {
+      await sendNotifToUser(message.recipient, data);
+      snapshot.ref.remove();
+      console.log('removed message');
+    } catch (e) {
+      console.error(e);
+      console.log('message not removed; continuing');
+    }
   });
 }
 
-async function sendNotifToUser(recipient, pattern) {
+async function sendNotifToUser(recipient, data) {
   let userFCMKey = await getUser(recipient);
   let options = {
     url: 'https://fcm.googleapis.com/fcm/send',
@@ -45,9 +52,7 @@ async function sendNotifToUser(recipient, pattern) {
       Authorization: 'key=' + FCM_API_KEY,
     },
     body: JSON.stringify({
-      data: {
-        pattern: pattern,
-      },
+      data,
       to: userFCMKey,
     }),
   };
@@ -60,7 +65,7 @@ async function sendNotifToUser(recipient, pattern) {
   }
   if (response.statusCode >= 400) {
     console.error('http error:', response.statusCode);
-    return false;
+    throw new Error(response);
   }
   console.log('Notification sent to:', userFCMKey);
   return true;
@@ -69,14 +74,30 @@ async function sendNotifToUser(recipient, pattern) {
 async function getUser(fbUid) {
   let users = ref.child('users');
   let user;
+  let token;
   try {
     user = await users.child(fbUid).once('value');
+    token = user.val().fcmToken;
   } catch (e) {
     console.error(e);
-    process.exit(1);
+    return false;
   }
-  let token = user.val().fcmToken;
   return token;
 }
 
-listenForNewMessages();
+function processMessagePattern(data) {
+  return { pattern: data.pattern };
+}
+
+function processMessageContacts(data) {
+  return { sender: data.from, recipient: data.to };
+}
+
+if (process.argv[2] == 'debug') {
+  console.log('Starting server in debug mode...');
+} else {
+  console.log('Starting server...');
+}
+
+listen('messages', processMessagePattern);
+listen('contactRequests', processMessageContacts);
