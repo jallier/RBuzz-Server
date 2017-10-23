@@ -81,7 +81,7 @@ async function getUserFcmToken(id) {
     user = await getUserWithEmail(users, id);
     let key;
     // Get the first child
-    for(let i in user.val()){
+    for (let i in user.val()) {
       key = i;
       break;
     }
@@ -91,7 +91,7 @@ async function getUserFcmToken(id) {
     user = await getUserWithUID(users, id);
     token = user.val().fcmToken;
   }
-  return token
+  return token;
 }
 
 async function getUserWithEmail(users, email) {
@@ -110,7 +110,7 @@ async function getUserWithUID(users, uid) {
 }
 
 function processMessagePattern(data) {
-  return { pattern: data.pattern };
+  return { messageType: 'vibration', pattern: data.pattern };
 }
 
 async function processMessageContacts(data) {
@@ -118,9 +118,13 @@ async function processMessageContacts(data) {
     console.log('not from email address');
     let sender = await getUserWithUID(ref.child('users'), data.sender);
     sender = sender.val().email;
-    return {contact:true, sender, recipient: data.recipient};
+    return { messageType: 'contactRequest', sender, recipient: data.recipient };
   }
-  return { contact: true, sender: data.sender, recipient: data.recipient };
+  return {
+    messageType: 'contactRequest',
+    sender: data.sender,
+    recipient: data.recipient,
+  };
 }
 
 if (process.argv[2] == 'debug') {
