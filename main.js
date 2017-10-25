@@ -31,14 +31,19 @@ function listen(childNode, processMessage) {
       await wait(1000);
     }
     let data = await processMessage(message);
-    try {
-      await sendNotifToUser(message.recipient, data);
-      snapshot.ref.remove();
-      console.log('removed message');
-    } catch (e) {
-      console.error(e);
-      console.log('message not removed; continuing');
+    if (data === null) {
+      console.log('Data processed but returned null; no data notification to send');
+    } else {
+      try {
+        await sendNotifToUser(message.recipient, data);
+      } catch (e) {
+        console.error(e);
+        console.log('message not removed; continuing');
+      }
     }
+    snapshot.ref.remove();
+    console.log('removed message from queue');
+    console.log();
   });
 }
 
@@ -114,6 +119,28 @@ function processMessagePattern(data) {
 }
 
 async function processMessageContacts(data) {
+  switch (data.type) {
+    case "contactRequest":
+      return await handleContactRequest(data);
+    case "contactAccept":
+      await handleContactAccept(data);
+      return null;
+  }
+}
+
+async function handleContactAccept(data) {
+  console.log('Adding contact info to user', data);
+  let user = ref.child('users').child(data.sender);
+  // let recipient = data.recipient;
+  let update = {
+    'contacts': {
+      [data.sender]: data.recipient
+    }
+  };
+  user.update(update);
+}
+
+async function handleContactRequest(data) {
   if (!data.sender.indexOf('@') > -1) {
     console.log('not from email address');
     let sender = await getUserWithUID(ref.child('users'), data.sender);
