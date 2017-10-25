@@ -47,6 +47,11 @@ function listen(childNode, processMessage) {
   });
 }
 
+/**
+ * Send a data notification to to user specified by Firebase Google uid
+ * @param {String} recipient Id of the notification recipient 
+ * @param {*} data object representing data to send to recipient 
+ */
 async function sendNotifToUser(recipient, data) {
   // let userFCMKey = await getUserFcmToken(recipient);
   let userFCMKey = await getUserFcmToken(recipient);
@@ -78,6 +83,11 @@ async function sendNotifToUser(recipient, data) {
   return true;
 }
 
+/**
+ * Get the users stored FCM Token from the database.
+ * @param {String} id The Firebase Google uid stored in the Firebase database.
+ * @returns {Promise<string>}
+ */
 async function getUserFcmToken(id) {
   let users = ref.child('users');
   let user;
@@ -99,6 +109,11 @@ async function getUserFcmToken(id) {
   return token;
 }
 
+/**
+ * Finds a user node given an email address
+ * @param {*} users Firebase reference to /users
+ * @param {String} email Address to look up user for
+ */
 async function getUserWithEmail(users, email) {
   let user;
   user = await users
@@ -108,16 +123,29 @@ async function getUserWithEmail(users, email) {
   return user;
 }
 
+/**
+ * Finds and returns a user node given their uid
+ * @param {*} users Firebase reference to /users
+ * @param {String} uid Firebase Google uid of user to find
+ */
 async function getUserWithUID(users, uid) {
   let user;
   user = await users.child(uid).once('value');
   return user;
 }
 
+/**
+ * Process the input when a user node is modified in Firebase and return it suitable for the app to receive
+ * @param {*} data input data object
+ */
 function processMessagePattern(data) {
   return { messageType: 'vibration', pattern: data.pattern };
 }
 
+/**
+ * Process the input when a contactRequest node is modified in Firebase. Returns either the correct data to send request to user, or null if user has accepted.
+ * @param {*} data The input data to process.
+ */
 async function processMessageContacts(data) {
   switch (data.type) {
     case "contactRequest":
@@ -128,10 +156,13 @@ async function processMessageContacts(data) {
   }
 }
 
+/**
+ * Write the users accepted contact info to their node in /users. Return null as no notification needs to be sent.
+ * @param {*} data input data to process
+ */
 async function handleContactAccept(data) {
   console.log('Adding contact info to user', data);
   let user = ref.child('users').child(data.sender);
-  // let recipient = data.recipient;
   let update = {
     'contacts': {
       [data.sender]: data.recipient
@@ -140,6 +171,10 @@ async function handleContactAccept(data) {
   user.update(update);
 }
 
+/**
+ * Return the data with email addresses replacing any uid for text processing on the app
+ * @param {*} data 
+ */
 async function handleContactRequest(data) {
   if (!data.sender.indexOf('@') > -1) {
     console.log('not from email address');
