@@ -14,6 +14,8 @@ let ref = db.ref();
 
 // Simple delay function
 let wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+// Simple function to get first key of an object
+let getFirstKey = obj => {for(let i in obj){return i;}};
 
 /**
  * Listen to Firebase server at node given by childNode.
@@ -95,12 +97,7 @@ async function getUserFcmToken(id) {
   let token;
   if (id.indexOf('@') > -1) {
     user = await getUserWithEmail(users, id);
-    let key;
-    // Get the first child
-    for (let i in user.val()) {
-      key = i;
-      break;
-    }
+    let key = getFirstKey(user.val());
     user = user.val()[key];
     token = user.fcmToken;
   } else {
@@ -163,13 +160,20 @@ async function processMessageContacts(data) {
  */
 async function handleContactAccept(data) {
   console.log('Adding contact info to user', data);
-  let user = ref.child('users').child(data.sender);
-  let update = {
-    'contacts': {
-      [data.sender]: data.recipient
-    }
-  };
-  user.update(update);
+  // Update recipients contacts
+  let user = ref.child('users').child(data.sender).child('contacts');
+  let recipientID = await getUserWithEmail(ref.child('users'), data.recipient);
+  recipientID = recipientID.val();
+  recipientID = getFirstKey(recipientID);
+  let update = {[recipientID]:data.recipient};
+  await user.update(update);
+
+  // Update senders contacts
+  user = ref.child('users').child(recipientID).child('contacts');
+  let senderEmail = await getUserWithUID(ref.child('users'), data.sender);
+  senderEmail = senderEmail.val().email;
+  update = {[data.sender]:senderEmail};
+  await user.update(update);
 }
 
 /**
