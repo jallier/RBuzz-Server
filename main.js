@@ -89,6 +89,7 @@ async function sendNotifToUser(recipient, data) {
  * @returns {Promise<string>}
  */
 async function getUserFcmToken(id) {
+  id = id.trim();
   let users = ref.child('users');
   let user;
   let token;
